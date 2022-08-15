@@ -4,6 +4,7 @@ namespace ProcFS
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using ProcFS.Wrapper;
 
     /// <summary>
     /// The Proc class that contains helpers to diplay process details
@@ -25,12 +26,15 @@ namespace ProcFS
         /// </summary>
         private static int CLK_TCK { get; set; }
 
+        private IIOWrapper Wrapper { get; set; }
+
         /// <summary>
         /// The Proc constructor
         /// </summary>
-        public Proc()
+        public Proc(IIOWrapper wrapper)
         {
             Procs = new List<ProcEntity>();
+            Wrapper = wrapper;
             passwdFileContent = GetPasswdFileContent();
             CLK_TCK = 100; // Default value of clock ticks per second
             if (passwdFileContent == null)
@@ -74,9 +78,9 @@ namespace ProcFS
         {
             // Read /etc/passwd file for username-UID mappings
             var passwdFilePath = "/etc/passwd";
-            if (File.Exists(passwdFilePath))
+            if (Wrapper.Exists(passwdFilePath))
             {
-                return File.ReadAllLines(passwdFilePath);
+                return Wrapper.ReadAllLines(passwdFilePath);
             }
             else
             {
@@ -95,7 +99,7 @@ namespace ProcFS
 
             try
             {
-                var dirs = new List<string>(Directory.EnumerateDirectories(path));
+                var dirs = new List<string>(Wrapper.EnumerateDirectories(path));
 
                 foreach (var dir in dirs)
                 {
@@ -127,9 +131,9 @@ namespace ProcFS
             try
             {
                 var statFilePath = $"/proc/{PID}/stat";
-                if (File.Exists(statFilePath))
+                if (Wrapper.Exists(statFilePath))
                 {
-                    var content = File.ReadAllText(statFilePath);
+                    var content = Wrapper.ReadAllText(statFilePath);
                     (int commStartIndex, int commLastIndex) = GetCommandIndices(content);
 
                     proc.PID = int.Parse(content.Substring(0, commStartIndex - 1));
@@ -169,10 +173,10 @@ namespace ProcFS
             try
             {
                 var statusFilePath = $"/proc/{PID}/status";
-                if (File.Exists(statusFilePath))
+                if (Wrapper.Exists(statusFilePath))
                 {
                     // Find the line that contains "Uid:" in the status file
-                    var uidLine = File.ReadAllLines(statusFilePath)?.Where(x => x.StartsWith("Uid:")).FirstOrDefault();
+                    var uidLine = Wrapper.ReadAllLines(statusFilePath)?.Where(x => x.StartsWith("Uid:")).FirstOrDefault();
                     if (!string.IsNullOrEmpty(uidLine))
                     {
                         // Retrieve Real UID after spliting by tab space

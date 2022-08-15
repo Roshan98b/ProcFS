@@ -1,4 +1,6 @@
-﻿namespace ProcFS
+﻿using ProcFS.Wrapper;
+
+namespace ProcFS
 {
     /// <summary>
     /// The Program class which contains the main method for execution
@@ -11,7 +13,7 @@
         /// <param name="args">The arguments array</param>
         static void Main(string[] args)
         {
-            var proc = new Proc();
+            var proc = new Proc(new IOWrapper());
             proc.StartProcess();
         }
     }
