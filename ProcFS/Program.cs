@@ -1,10 +1,12 @@
-﻿using ProcFS.Wrapper;
-
-namespace ProcFS
+﻿namespace ProcFS
 {
+    using System.Diagnostics.CodeAnalysis;
+    using ProcFS.Wrapper;
+
     /// <summary>
     /// The Program class which contains the main method for execution
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class Program
     {
         /// <summary>

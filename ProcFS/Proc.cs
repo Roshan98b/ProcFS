@@ -37,10 +37,6 @@ namespace ProcFS
             Wrapper = wrapper;
             passwdFileContent = GetPasswdFileContent();
             CLK_TCK = 100; // Default value of clock ticks per second
-            if (passwdFileContent == null)
-            {
-                Console.WriteLine($"/etc/passwd is empty");
-            }
         }
 
         /// <summary>
@@ -134,21 +130,26 @@ namespace ProcFS
                 if (Wrapper.Exists(statFilePath))
                 {
                     var content = Wrapper.ReadAllText(statFilePath);
-                    (int commStartIndex, int commLastIndex) = GetCommandIndices(content);
-
-                    proc.PID = int.Parse(content.Substring(0, commStartIndex - 1));
-                    proc.Name = content.Substring(commStartIndex + 1, (commLastIndex - commStartIndex) - 1);
-
-                    // Split the rest of the stat file content by whitespace
-                    var restOftheContent = content.Substring(commLastIndex + 2)?.Split(' ');
-
-                    if (restOftheContent != null)
+                    if (!string.IsNullOrEmpty(content))
                     {
-                        proc.PPID = int.Parse(restOftheContent[1]);
-                        proc.VSize = GetVirtualMemorySize(double.Parse(restOftheContent[20]));
-                        proc.Utime = Math.Round(double.Parse(restOftheContent[11]) / CLK_TCK, 2).ToString() + "sec";
-                        proc.Stime = Math.Round(double.Parse(restOftheContent[12]) / CLK_TCK, 2).ToString() + "sec";
-                        return true;
+                        (int commStartIndex, int commLastIndex) = GetCommandIndices(content);
+                        if (commStartIndex != -1 && commLastIndex != -1)
+                        {
+                            proc.PID = int.Parse(content.Substring(0, commStartIndex - 1));
+                            proc.Name = content.Substring(commStartIndex + 1, (commLastIndex - commStartIndex) - 1);
+
+                            // Split the rest of the stat file content by whitespace
+                            var restOftheContent = content.Substring(commLastIndex + 2)?.Split(' ');
+
+                            if (restOftheContent != null && restOftheContent.Length > 21)
+                            {
+                                proc.PPID = int.Parse(restOftheContent[1]);
+                                proc.VSize = GetVirtualMemorySize(double.Parse(restOftheContent[20]));
+                                proc.Utime = Math.Round(double.Parse(restOftheContent[11]) / CLK_TCK, 2).ToString() + "sec";
+                                proc.Stime = Math.Round(double.Parse(restOftheContent[12]) / CLK_TCK, 2).ToString() + "sec";
+                                return true;
+                            }
+                        }
                     }
                 }
             }
@@ -216,29 +217,35 @@ namespace ProcFS
         /// <returns>The starting and ending indices of command in /proc/[pid]/stat file</returns>
         private (int, int) GetCommandIndices(string content)
         {
-            //// command parsing
-            //// command name may contain whitespace
-            int commStartIndex = -1, commLastIndex = -1;
-
-            for (int i = 0; i < content.Length; i++)
+            try
             {
-                if (content[i] == '(')
+                //// command parsing
+                //// command name may contain whitespace
+                int commStartIndex = -1, commLastIndex = -1;
+                for (int i = 0; i < content.Length; i++)
                 {
-                    commStartIndex = i;
-                    break;
+                    if (content[i] == '(')
+                    {
+                        commStartIndex = i;
+                        break;
+                    }
                 }
-            }
 
-            for (int j = content.Length - 1; j > 0; j--)
+                for (int j = content.Length - 1; j > 0; j--)
+                {
+                    if (content[j] == ')')
+                    {
+                        commLastIndex = j;
+                        break;
+                    }
+                }
+                return (commStartIndex, commLastIndex);
+            }
+            catch (IndexOutOfRangeException ex)
             {
-                if (content[j] == ')')
-                {
-                    commLastIndex = j;
-                    break;
-                }
+                Console.WriteLine($"Index out of bounds : {content} : {ex.Message}");
+                return (-1, -1);
             }
-
-            return (commStartIndex, commLastIndex);
         }
 
         /// <summary>
